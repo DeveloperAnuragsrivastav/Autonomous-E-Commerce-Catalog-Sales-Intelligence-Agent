@@ -1,0 +1,8 @@
+{
+ "sku": "BM349956",
+ "status": "ok",
+ "provider": "composite:rembg+rendered-room",
+ "path": "images/BM349956.jpg",
+ "source_url": "https://public-s.s3.ap-south-1.amazonaws.com/Benjara/BM349956.jpg",
+ "note": "Composite provider (Gemini unavailable: image model quota is 0 on this key (free tier); enable billing)"
+}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, run_badge, timeline %}
+{% block title %}{{ run.input_name }}{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Breadcrumb"><a href="/runs">Runs</a>{{ icon("chev-r", "i-sm") }}<span class="mono">{{ run.id }}</span></nav>{% endblock %}
+{% block heading %}{{ run.input_name }}{% endblock %}
+{% block actions %}
+  {% if run.status in ACTIVE %}
+    <button class="btn btn-danger" type="button" data-cancel="{{ run.id }}" {% if run.status == "cancelling" %}disabled{% endif %}>{{ icon("stop") }}<span class="btn-label">Cancel run</span></button>
+  {% else %}
+    {% if run.status in ("failed", "cancelled", "completed_with_errors") %}
+    <form method="post" action="/runs/{{ run.id }}/rerun">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn btn-primary" type="submit" {% if active_run %}disabled title="Another run is in progress"{% endif %}>{{ icon("play") }}<span class="btn-label">Run again</span></button>
+    </form>
+    {% endif %}
+    {% if results.files %}<a class="btn" href="/runs/{{ run.id }}/files/catalog_agent_results.xlsx">{{ icon("download") }}<span class="btn-label">Results workbook</span></a>{% endif %}
+    {% if user.is_admin %}
+    <form method="post" action="/runs/{{ run.id }}/delete" data-confirm="Delete this run, its outputs and images? This cannot be undone.">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="btn btn-ghost" type="submit" aria-label="Delete run" title="Delete run">{{ icon("trash") }}</button>
+    </form>
+    {% endif %}
+  {% endif %}
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="panel" data-run-live="{{ run.id }}" data-status="{{ run.status }}">
+    <div class="panel-head" style="flex-wrap:wrap">
+      <div class="run-head" style="flex:1;min-width:0">
+        {{ run_badge(run.status) }}
+        <span>Started by {{ run.created_by }}</span><span class="sep"></span>
+        <span>{{ run.created_at|when }}</span>
+        {% if run|duration or run.status in ACTIVE %}<span class="sep"></span><span data-elapsed>{{ run|duration }}</span>{% endif %}
+        {% if run.imported %}<span class="sep"></span><span>Imported from the command-line run</span>{% endif %}
+      </div>
+    </div>
+    {{ timeline(run) }}
+  </div>
+
+  {% set stopped = run.steps[run.stopped_at].label if run.stopped_at and run.stopped_at in run.steps else None %}
+  {% if notice == "busy" %}
+  <div class="alert alert-warn" role="status">{{ icon("clock") }}<div class="alert-body"><strong>Not started</strong>Another run is in progress. <a href="/runs/{{ active_run }}">Watch it</a> or cancel it, then run this again.</div></div>
+  {% endif %}
+  {% if run.status == "failed" %}
+  <div class="alert alert-bad" role="alert">{{ icon("alert") }}<div class="alert-body">
+    <strong>{% if stopped %}The run stopped during {{ stopped }}{% else %}The run stopped{% endif %}</strong>
+    {{ run.error }} Completed steps are cached, so <b>Run again</b> resumes from there.</div></div>
+  {% elif run.status == "completed_with_errors" %}
+  <div class="alert alert-warn" role="status">{{ icon("alert") }}<div class="alert-body"><strong>Some steps failed</strong>The other steps finished and their results are below. The Overview tab shows which step failed and why; <b>Run again</b> retries with the same settings.</div></div>
+  {% elif run.status == "cancelled" %}
+  <div class="alert" role="status">{{ icon("stop") }}<div class="alert-body"><strong>Cancelled{% if stopped %} during {{ stopped }}{% endif %}</strong>No outputs were written. Completed work is cached, so <b>Run again</b> resumes quickly.</div></div>
+  {% endif %}
+
+  {% set tabs = [
+    ("overview", "Overview", None),
+    ("content", "Content", results.content|length if results.content else None),
+    ("images", "Images", results.images.values()|selectattr("status", "equalto", "ok")|list|length if results.images else None),
+    ("competitors", "Competitors", results.competitors.summaries|length if results.competitors.summaries else None),
+    ("sales", "Sales", None),
+    ("quality", "Data quality", results.quality|length if results.quality else None),
+    ("files", "Files", results.files|length if results.files else None),
+    ("log", "Log", None),
+  ] %}
+  <div>
+    <nav class="tabs" aria-label="Run sections">
+      {% for key, label, count in tabs %}
+      <a href="/runs/{{ run.id }}?tab={{ key }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }}{% if count %}<span class="count">{{ count }}</span>{% endif %}</a>
+      {% endfor %}
+    </nav>
+    {% if tab != "overview" and tab != "log" and not results.has_output %}
+      <div class="panel"><div class="empty">
+        <div class="empty-icon">{{ icon("clock" if run.status in ACTIVE else "info", "i-lg") }}</div>
+        {% if run.status in ACTIVE %}
+          <h2>Results appear when the run finishes</h2>
+          <p>Outputs are written in the last step. This page refreshes on its own when they are ready.</p>
+        {% else %}
+          <h2>This run produced no outputs</h2>
+          <p>It stopped before the final step. The Overview and Log tabs show what happened.</p>
+        {% endif %}
+      </div></div>
+    {% else %}
+      {% include "tabs/" ~ tab ~ ".html" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

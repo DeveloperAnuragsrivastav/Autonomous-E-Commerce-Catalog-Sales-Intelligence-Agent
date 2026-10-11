@@ -1,0 +1,33 @@
+{% from "_macros.html" import icon, severity_badge %}
+{% if not results.quality %}
+<div class="panel"><div class="empty">
+  <div class="empty-icon">{{ icon("check", "i-lg") }}</div>
+  <h2>No data issues recorded</h2>
+  <p>The workbook passed every check, or this run predates the data-quality export.</p>
+</div></div>
+{% else %}
+<p class="muted" style="margin-bottom:14px;max-width:96ch">Everything the pipeline found in the workbook and what it did about it. The input file is never edited by hand; all cleaning happens inside the pipeline.</p>
+{% for sheet in ["vendor data", "sales data"] %}
+  {% set issues = results.quality|selectattr("sheet", "equalto", sheet)|list %}
+  {% if issues %}
+  <div class="section-title" {% if loop.first %}style="margin-top:0"{% endif %}><h2>{{ sheet|capitalize }} sheet</h2><span class="muted small">{{ issues|length }} findings</span></div>
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Severity</th><th>Field</th><th>Finding</th><th class="r">Count</th><th>Action taken</th><th>Examples</th></tr></thead>
+      <tbody>
+      {% for i in issues %}
+        <tr>
+          <td>{{ severity_badge(i.severity) }}</td>
+          <td class="small" style="min-width:120px">{{ i.field }}</td>
+          <td class="wrap">{{ i.issue }}</td>
+          <td class="r">{{ i.count|num }}</td>
+          <td class="wrap muted">{{ i.action }}</td>
+          <td class="small muted" style="min-width:200px;max-width:340px;overflow-wrap:anywhere">{{ i.examples }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endfor %}
+{% endif %}

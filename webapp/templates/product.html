@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, qa_badge %}
+{% block title %}{{ item.sku }}{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Breadcrumb"><a href="/runs">Runs</a>{{ icon("chev-r", "i-sm") }}<a class="mono" href="/runs/{{ run.id }}?tab=content">{{ run.id }}</a>{{ icon("chev-r", "i-sm") }}<span>{{ item.sku }}</span></nav>{% endblock %}
+{% block heading %}{{ item.sku }}{% endblock %}
+{% block actions %}
+<div class="pager">
+  <a class="btn btn-sm" {% if prev_sku %}href="/runs/{{ run.id }}/products/{{ prev_sku }}"{% else %}aria-disabled="true"{% endif %} aria-label="Previous SKU" data-key-prev>{{ icon("chev-l") }}</a>
+  <a class="btn btn-sm" {% if next_sku %}href="/runs/{{ run.id }}/products/{{ next_sku }}"{% else %}aria-disabled="true"{% endif %} aria-label="Next SKU" data-key-next>{{ icon("chev-r") }}</a>
+</div>
+{% endblock %}
+{% block content %}
+<div class="product">
+  <div class="viewer" data-viewer>
+    <div class="frame">
+      {% if image and image.status == "ok" %}
+        <img data-view-img src="/runs/{{ run.id }}/images/{{ item.sku }}.jpg?w=1200" data-life="/runs/{{ run.id }}/images/{{ item.sku }}.jpg?w=1200" data-src="/runs/{{ run.id }}/source/{{ item.sku }}.jpg?w=1200" alt="Lifestyle image of {{ item.title }}" width="1200" height="900">
+      {% else %}
+        <img data-view-img src="/runs/{{ run.id }}/source/{{ item.sku }}.jpg?w=1200" alt="Vendor photo of {{ item.title }}" width="1200" height="900">
+      {% endif %}
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      {% if image and image.status == "ok" %}
+      <div class="switch" role="group" aria-label="Image shown">
+        <button type="button" aria-pressed="true" data-view="life">Lifestyle</button>
+        <button type="button" aria-pressed="false" data-view="src">Vendor photo</button>
+      </div>
+      <span class="small muted" style="margin-top:10px">{{ image.provider|prov }}</span>
+      {% else %}
+      <p class="small muted" style="margin-top:10px">No lifestyle image: {{ image.note if image else "the image step did not run" }}.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="copy stack">
+    <div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        {{ qa_badge(item.qa_status) }}
+        {% if price and price.price %}<span class="badge badge-plain">{{ price.price|money }} on benzara.com{% if price.in_stock == false %} · out of stock{% endif %}</span>
+        {% else %}<span class="badge badge-plain">Not listed on benzara.com</span>{% endif %}
+      </div>
+      <h2 class="title">{{ item.title }}</h2>
+      <p class="desc">{{ item.description }}</p>
+      <ul class="features" aria-label="Key features">
+        {% for f in item.key_features %}{% set parts = f.split(": ", 1) %}
+        <li>{{ icon("check") }}<span>{% if parts|length == 2 %}<b>{{ parts[0] }}:</b> {{ parts[1] }}{% else %}{{ f }}{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+      {% if item.qa_issues %}
+      <div class="alert alert-warn" style="margin-top:16px">{{ icon("alert") }}<div class="alert-body"><strong>QA notes</strong>{{ item.qa_issues|join("; ") }}</div></div>
+      {% endif %}
+      <p class="small muted" style="margin-top:14px">Written by {{ item.model|prov }} in {{ item.attempts }} attempt{{ "s" if item.attempts != 1 }}. Attributes below come straight from the vendor sheet, not from the model.</p>
+    </div>
+
+    <section class="panel" aria-labelledby="attr-h">
+      <div class="panel-head"><h2 id="attr-h">Attributes</h2></div>
+      <div class="panel-body"><dl class="facts">
+        {% for k, v in item.attributes.items() %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+      </dl></div>
+    </section>
+
+    {% if benchmark %}
+    <section class="panel" aria-labelledby="bm-h">
+      <div class="panel-head"><h2 id="bm-h">Competitor benchmark</h2>{% if benchmark.sku != item.sku %}<span class="muted">Shared with {{ benchmark.sku }} (same model)</span>{% endif %}</div>
+      <div class="panel-body">
+        <div class="price-pos" style="margin-bottom:8px">
+          {% if benchmark.competitor_median %}<span>Median <b>{{ benchmark.competitor_median|money }}</b></span><span>Range <b>{{ benchmark.competitor_min|money }} – {{ benchmark.competitor_max|money }}</b></span>{% endif %}
+          {% if benchmark.suggested_price_band %}<span>Launch band <b>{{ benchmark.suggested_price_band }}</b></span>{% endif %}
+        </div>
+        <p style="line-height:1.55">{{ benchmark.insight }}</p>
+      </div>
+      {% if rows %}
+      <div class="table-wrap" style="border-left:0;border-right:0;border-bottom:0;border-radius:0 0 8px 8px"><table class="table table-compact">
+        <thead><tr><th>Competitor</th><th>Marketplace</th><th class="r">Price</th></tr></thead>
+        <tbody>{% for r in rows %}<tr><td class="wrap">{% if r.link %}<a href="{{ r.link }}" target="_blank" rel="noopener">{{ r.competitor_product }}</a>{% else %}{{ r.competitor_product }}{% endif %}</td><td class="nowrap">{{ r.marketplace }}</td><td class="r">{{ r.competitor_price|money }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

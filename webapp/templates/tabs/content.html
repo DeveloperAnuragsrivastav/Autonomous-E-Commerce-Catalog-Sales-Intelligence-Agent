@@ -1,0 +1,49 @@
+{% from "_macros.html" import icon, qa_badge %}
+<form class="panel" method="get" action="/runs/{{ run.id }}" style="display:flex;gap:10px;align-items:center;padding:10px 12px;margin-bottom:14px;flex-wrap:wrap" role="search">
+  <input type="hidden" name="tab" value="content">
+  <label class="sr-only" for="q">Search SKUs and titles</label>
+  <div style="position:relative;flex:1 1 260px">
+    <span style="position:absolute;left:10px;top:10px;color:var(--ink-2)">{{ icon("search") }}</span>
+    <input class="input" id="q" name="q" value="{{ q }}" placeholder="Search SKU or title" style="padding-left:34px">
+  </div>
+  <label class="sr-only" for="qa">QA status</label>
+  <select class="select" id="qa" name="qa" style="width:auto" data-autosubmit>
+    <option value="">All QA statuses</option>
+    <option value="passed" {% if qa == "passed" %}selected{% endif %}>QA passed</option>
+    <option value="passed_with_warnings" {% if qa == "passed_with_warnings" %}selected{% endif %}>QA warnings</option>
+    <option value="failed" {% if qa == "failed" %}selected{% endif %}>QA failed</option>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  {% if q or qa %}<a class="btn btn-ghost" href="/runs/{{ run.id }}?tab=content">Clear</a>{% endif %}
+</form>
+
+{% if content %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th style="width:80px"><span class="sr-only">Image</span></th><th>SKU</th><th>Title</th><th>Colour</th><th class="r">Our price</th><th>QA</th><th>Written by</th></tr></thead>
+    <tbody>
+    {% for c in content %}
+      {% set img = results.images.get(c.sku) %}
+      {% set price = results.our_price(c.sku) %}
+      <tr>
+        <td>{% if img and img.status == "ok" %}<img class="thumb" src="/runs/{{ run.id }}/images/{{ c.sku }}.jpg?w=160" alt="" loading="{{ 'eager' if loop.index <= 10 else 'lazy' }}" width="64" height="48">{% else %}<span class="thumb" style="display:grid;place-items:center;color:var(--ink-3)">{{ icon("image") }}</span>{% endif %}</td>
+        <td class="mono nowrap">{{ c.sku }}</td>
+        <td class="wrap"><a class="row-link" href="/runs/{{ run.id }}/products/{{ c.sku }}">{{ c.title or "No title generated" }}</a>
+          <div class="small muted">{{ c.attributes.get("Product Type", "") }}{% if c.attributes.get("Collection") %} · {{ c.attributes.Collection }} collection{% endif %}</div></td>
+        <td>{{ c.attributes.get("Colour", "") }}</td>
+        <td class="r">{% if price and price.price %}{{ price.price|money }}{% else %}<span class="muted small">Not listed</span>{% endif %}</td>
+        <td>{{ qa_badge(c.qa_status) }}</td>
+        <td class="small muted nowrap">{{ c.model|prov }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="panel"><div class="empty">
+  <div class="empty-icon">{{ icon("search", "i-lg") }}</div>
+  <h2>No listings match</h2>
+  <p>{% if q or qa %}Try a different search or clear the filters.{% else %}This run generated no content.{% endif %}</p>
+  {% if q or qa %}<a class="btn" href="/runs/{{ run.id }}?tab=content">Clear filters</a>{% endif %}
+</div></div>
+{% endif %}

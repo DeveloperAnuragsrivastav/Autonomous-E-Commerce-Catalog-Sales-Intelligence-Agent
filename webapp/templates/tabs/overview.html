@@ -1,0 +1,52 @@
+{% from "_macros.html" import icon %}
+{% set m = results.manifest %}
+<div class="split">
+  <section class="panel" aria-labelledby="steps-h">
+    <div class="panel-head"><h2 id="steps-h">Step results</h2></div>
+    <div class="table-wrap" style="border:0;border-radius:0 0 8px 8px">
+      <table class="table">
+        <thead><tr><th>Step</th><th class="r">Time</th><th class="hide-sm">Result</th></tr></thead>
+        <tbody>
+        {% for name, label in STEPS %}
+          {% set st = run.steps[name] %}
+          <tr>
+            <td style="font-weight:550">{{ label }}
+              <div class="small muted show-sm" style="font-weight:400;overflow-wrap:anywhere">{{ st.detail|prov_text or st.status|replace("_", " ")|capitalize }}</div></td>
+            <td class="r">{% if st.status in ("ok", "failed", "cancelled") %}{{ st.seconds|secs }}{% else %}<span class="muted">{{ st.status|replace("_", " ")|capitalize if st.status != "pending" else "Waiting" }}</span>{% endif %}</td>
+            <td class="muted detail hide-sm" style="overflow-wrap:anywhere">{{ st.detail|prov_text }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <aside class="stack">
+    <section class="panel" aria-labelledby="opts-h">
+      <div class="panel-head"><h2 id="opts-h">Run settings</h2></div>
+      <div class="panel-body">
+        {% set o = run.options %}
+        <dl class="facts">
+          <dt>Input</dt><dd><a href="/runs/{{ run.id }}/input">{{ run.input_name }}</a></dd>
+          <dt>SKUs</dt><dd>{% if o.skus %}{{ o.skus|join(", ") }}{% else %}All vendor SKUs{% endif %}</dd>
+          <dt>Images</dt><dd>{% if o.skip_images %}Skipped{% else %}{{ IMAGE_PROVIDERS.get(o.image_provider, o.image_provider) }}{% if o.image_limit %}, first {{ o.image_limit }}{% endif %}{% endif %}</dd>
+          <dt>Competitors</dt><dd>{% if o.skip_competitors %}Skipped{% elif o.competitor_limit %}Up to {{ o.competitor_limit }} models{% else %}Every model{% endif %}</dd>
+          <dt>Cache</dt><dd>{{ "Reused" if o.use_cache else "Regenerated everything" }}</dd>
+        </dl>
+      </div>
+    </section>
+    {% if m.models_used %}
+    <section class="panel" aria-labelledby="models-h">
+      <div class="panel-head"><h2 id="models-h">Written by</h2></div>
+      <div class="panel-body">
+        <dl class="facts">
+          <dt>Content</dt><dd>{% for x in m.models_used.content %}{{ x|prov }}{{ ", " if not loop.last }}{% else %}—{% endfor %}</dd>
+          <dt>Images</dt><dd>{% for x in m.models_used.images %}{{ x|prov }}{{ ", " if not loop.last }}{% else %}—{% endfor %}</dd>
+          <dt>Insights</dt><dd>{{ m.models_used.sales_insights|prov }}</dd>
+        </dl>
+        <p class="hint" style="margin-top:12px">Facts such as attributes, prices and sales figures are computed in code; models only write language, and every number they use is checked.</p>
+      </div>
+    </section>
+    {% endif %}
+  </aside>
+</div>

@@ -1,0 +1,58 @@
+{% macro icon(name, cls="") -%}
+<svg class="i {{ cls }}" aria-hidden="true"><use href="#i-{{ name }}"/></svg>
+{%- endmacro %}
+
+{% macro run_badge(status) -%}
+{% set RUN_STATUS = {
+  "queued": ("Queued", "badge-live", "clock"),
+  "running": ("Running", "badge-live", "loader"),
+  "cancelling": ("Cancelling", "badge-warn", "loader"),
+  "succeeded": ("Completed", "badge-ok", "check"),
+  "completed_with_errors": ("Completed with errors", "badge-warn", "alert"),
+  "failed": ("Failed", "badge-bad", "x"),
+  "cancelled": ("Cancelled", "", "stop"),
+} %}
+{% set s = RUN_STATUS.get(status, (status, "", "info")) %}
+<span class="badge {{ s[1] }}" data-run-badge>{{ icon(s[2], "spinner" if s[2] == "loader" else "") }}{{ s[0] }}</span>
+{%- endmacro %}
+
+{% macro qa_badge(status) -%}
+{% if status == "passed" %}<span class="badge badge-ok">{{ icon("check") }}QA passed</span>
+{% elif status == "passed_with_warnings" %}<span class="badge badge-warn">{{ icon("alert") }}QA warnings</span>
+{% elif status in ("failed", "error") %}<span class="badge badge-bad">{{ icon("x") }}QA failed</span>
+{% else %}<span class="badge">Not run</span>{% endif %}
+{%- endmacro %}
+
+{% macro severity_badge(sev) -%}
+{% if sev == "error" %}<span class="badge badge-bad">{{ icon("x") }}Error</span>
+{% elif sev == "warning" %}<span class="badge badge-warn">{{ icon("alert") }}Warning</span>
+{% else %}<span class="badge">{{ icon("info") }}Info</span>{% endif %}
+{%- endmacro %}
+
+{% macro step_icon(status) -%}
+{% if status == "ok" %}{{ icon("check") }}{% elif status == "failed" %}{{ icon("x") }}{% elif status == "running" %}{{ icon("loader") }}{% elif status == "cancelled" %}{{ icon("stop") }}{% elif status == "skipped" %}{{ icon("minus") }}{% endif %}
+{%- endmacro %}
+
+{% macro timeline(run) -%}
+<div class="timeline" data-timeline>
+  {% for name, label in STEPS %}
+  {% set st = run.steps[name] %}
+  <div class="tl-step" data-step="{{ name }}" data-status="{{ st.status }}">
+    <div class="tl-rail"><span class="tl-dot" data-dot>{{ step_icon(st.status) }}</span><span class="tl-line"><i></i></span></div>
+    <div class="tl-name">{{ label }}</div>
+    <div class="tl-meta" data-meta>
+      {%- if st.status == "running" and st.total %}{{ st.done }} / {{ st.total }}{% if st.item %} · {{ st.item }}{% endif %}
+      {%- elif st.status == "running" %}In progress
+      {%- elif st.status == "ok" %}{{ st.seconds|secs }}
+      {%- elif st.status == "skipped" %}Skipped
+      {%- elif st.status == "failed" and st.detail == "stopped here" %}Stopped here
+      {%- elif st.status == "failed" %}Failed
+      {%- elif st.status == "cancelled" %}Cancelled{% if st.seconds %} at {{ st.seconds|secs }}{% endif %}
+      {%- elif st.status == "not_started" %}Not started
+      {%- else %}Waiting{% endif -%}
+    </div>
+    <div class="tl-bar"><i style="transform: scaleX({{ ((st.done or 0) / st.total) if st.total else 0 }})"></i></div>
+  </div>
+  {% endfor %}
+</div>
+{%- endmacro %}

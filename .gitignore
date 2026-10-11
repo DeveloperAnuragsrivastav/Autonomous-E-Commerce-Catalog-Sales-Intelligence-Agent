@@ -1,0 +1,12 @@
+.env
+.venv/
+.cache/
+.scratch/
+__pycache__/
+*.pyc
+.DS_Store
+instance/
+runs/
+.impeccable/
+.claude/
+.pytest_cache/

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon, run_badge, timeline %}
+{% block title %}Overview{% endblock %}
+{% block heading %}Overview{% endblock %}
+{% block actions %}
+  {% if latest %}<a class="btn" href="/runs/{{ latest.id }}">{{ icon("runs") }}<span class="btn-label">Open latest run</span></a>{% endif %}
+  <a class="btn btn-primary" href="/runs/new">{{ icon("plus") }}New run</a>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  {% if missing %}
+  <div class="alert alert-warn" role="status">{{ icon("key") }}
+    <div class="alert-body">
+      <strong>Setup is incomplete</strong>
+      Missing: {{ missing|join("; ") }}.
+      {% if user.is_admin %}<a href="/settings">Add keys in Settings</a>.{% else %}Ask an admin to add them in Settings.{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if not latest %}
+  <div class="panel"><div class="empty">
+    <div class="empty-icon">{{ icon("sheet", "i-lg") }}</div>
+    <h2>No runs yet</h2>
+    <p>Upload a vendor and sales workbook to generate listings, lifestyle images, competitor benchmarks and a sales analysis.</p>
+    <a class="btn btn-primary" href="/runs/new">{{ icon("plus") }}Start the first run</a>
+  </div></div>
+  {% else %}
+  <section aria-labelledby="latest-h">
+    <div class="section-title" style="margin-top:0">
+      <h2 id="latest-h">Latest run</h2>
+    </div>
+    <div class="panel" data-run-live="{{ latest.id }}" data-status="{{ latest.status }}">
+      <div class="panel-head">
+        <div style="flex:1;min-width:0">
+          <h3><a class="row-link" href="/runs/{{ latest.id }}" style="color:inherit">{{ latest.input_name }}</a></h3>
+          <div class="run-head" style="margin-top:4px">
+            <span>Started by {{ latest.created_by }}</span><span class="sep"></span>
+            <span>{{ latest.created_at|when }}</span>
+            {% if latest|duration %}<span class="sep"></span><span data-elapsed>{{ latest|duration }}</span>{% endif %}
+          </div>
+        </div>
+        {{ run_badge(latest.status) }}
+      </div>
+      {{ timeline(latest) }}
+    </div>
+    {% if results and results.has_output %}
+    {% set c = results.content %}
+    {% if metrics_run.id != latest.id %}
+    <p class="small muted" style="margin-top:16px">Results below are from the last run that finished: <a href="/runs/{{ metrics_run.id }}">{{ metrics_run.input_name }}</a>, {{ metrics_run.created_at|when }}.</p>
+    {% endif %}
+    {% set s = results.sales.summary if results.sales else None %}
+    <dl class="metrics" style="margin-top:{{ '8px' if metrics_run.id != latest.id else '16px' }}">
+      <div class="metric"><dt>Listings passing QA</dt><dd>{{ c|selectattr("qa_status", "equalto", "passed")|list|length }}<small> / {{ c|length }}</small></dd></div>
+      <div class="metric"><dt>Lifestyle images</dt><dd>{{ results.images.values()|selectattr("status", "equalto", "ok")|list|length }}<small> / {{ results.images|length }}</small></dd></div>
+      <div class="metric"><dt>Models benchmarked</dt><dd>{{ results.competitors.summaries|default([])|length }}<small> · {{ results.competitors.rows|default([])|length }} competitors</small></dd></div>
+      {% if s %}
+      <div class="metric"><dt>Net sales</dt><dd>${{ (s.net_sales / 1000000)|round(2) }}M</dd></div>
+      <div class="metric"><dt>Units sold</dt><dd>{{ s.units_sold|num }}</dd></div>
+      {% endif %}
+      <div class="metric"><dt>Data issues logged</dt><dd>{{ results.quality|length }}</dd></div>
+    </dl>
+    {% endif %}
+  </section>
+
+  <section aria-labelledby="recent-h">
+    <div class="section-title">
+      <h2 id="recent-h">Recent runs</h2>
+      <a class="small" href="/runs">All runs</a>
+    </div>
+    {% with runs = recent %}{% include "_runs_table.html" %}{% endwith %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

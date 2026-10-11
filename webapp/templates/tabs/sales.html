@@ -1,0 +1,146 @@
+{% from "_macros.html" import icon %}
+{% set sa = results.sales %}
+{% if not sa %}
+<div class="panel"><div class="empty">
+  <div class="empty-icon">{{ icon("chart", "i-lg") }}</div>
+  <h2>No sales analysis in this run</h2>
+  <p>The sales step did not finish. The Overview tab shows why.</p>
+</div></div>
+{% else %}
+{% set s = sa.summary %}
+{% set t = sa.tables or {} %}
+<div class="stack">
+  <dl class="metrics">
+    <div class="metric"><dt>Net sales</dt><dd>{{ s.net_sales|money }}</dd></div>
+    <div class="metric"><dt>Units sold</dt><dd>{{ s.units_sold|num }}</dd></div>
+    <div class="metric"><dt>Orders</dt><dd>{{ s.orders|num }}</dd></div>
+    <div class="metric"><dt>Average order</dt><dd>{{ s.avg_order_value|money }}</dd></div>
+    <div class="metric"><dt>SKUs sold</dt><dd>{{ s.skus_sold|num }}<small> of {{ s.skus_in_file|num }}</small></dd></div>
+  </dl>
+  <p class="muted small">{{ s.period_start }} to {{ s.period_end }} · {{ s.lines_excluded|num }} of {{ s.lines_in_file|num }} order lines excluded (cancelled, pending, zero-value) · pending value {{ s.pending_value|money }}. <a href="#counting">How sales were counted</a></p>
+
+  <section class="panel" aria-labelledby="ins-h">
+    <div class="panel-head"><h2 id="ins-h">Business insights</h2><span class="muted">Written by {{ sa.insights_source|prov }}; every figure checked against the computed data</span></div>
+    <div class="insights">
+      {% for i in sa.insights %}
+      <div class="insight"><strong>{{ i.headline }}</strong><p>{{ i.detail }}</p><div class="act"><b>Action:</b> {{ i.recommendation }}</div></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% set ch = weekly_chart(t.weekly or []) %}
+  {% if ch %}
+  <section class="panel" aria-labelledby="wk-h">
+    <div class="panel-head"><h2 id="wk-h">Net sales by week</h2><span class="muted">Hatched weeks are only partly covered by the data</span></div>
+    <div class="panel-body">
+      <div class="chart" data-chart>
+        <div class="cols" role="img" aria-label="Weekly net sales from {{ ch.bars[0].range }} to {{ ch.bars[-1].range }}. Highest week {{ (ch.bars|selectattr('peak')|first).range }} at {{ (ch.bars|selectattr('peak')|first).value|money }}.">
+          <div class="cols-y" aria-hidden="true">{% for tk in ch.ticks %}<span style="bottom: {{ tk.pct }}%">{{ tk.label }}</span>{% endfor %}</div>
+          <div class="cols-plot">
+            {% for tk in ch.ticks %}<i class="cols-grid" style="bottom: {{ tk.pct }}%" aria-hidden="true"></i>{% endfor %}
+            {% for b in ch.bars %}
+            <div class="col" data-tip="{{ b.range }}{% if b.partial %} ({{ b.days }} day{{ 's' if b.days != 1 }} of data){% endif %}|{{ b.value|money }} net sales|{{ b.orders|num }} orders · {{ b.units|num }} units">
+              <span class="col-bar{% if b.partial %} partial{% endif %}" style="height: {{ b.pct }}%">{% if b.peak %}<span class="col-val">${{ (b.value / 1000)|round(0)|int }}k</span>{% endif %}</span>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="cols-x" aria-hidden="true">{% for b in ch.bars %}<span>{{ b.label }}</span>{% endfor %}</div>
+        </div>
+        <div class="tip" data-tipbox role="status"></div>
+      </div>
+      <details style="margin-top:10px"><summary class="small" style="cursor:pointer;color:var(--accent-ink)">Show as table</summary>
+        <div class="table-wrap" style="margin-top:10px"><table class="table table-compact">
+          <thead><tr><th>Week</th><th class="r">Net sales</th><th class="r">Orders</th><th class="r">Units</th><th>Coverage</th></tr></thead>
+          <tbody>{% for b in ch.bars %}<tr><td>{{ b.range }}</td><td class="r">{{ b.value|money }}</td><td class="r">{{ b.orders|num }}</td><td class="r">{{ b.units|num }}</td><td>{% if b.partial %}{{ b.days }} of 7 days{% else %}Full week{% endif %}</td></tr>{% endfor %}</tbody>
+        </table></div>
+      </details>
+    </div>
+  </section>
+  {% endif %}
+
+  <div class="cols-2">
+    <section class="panel" aria-labelledby="ch-h">
+      <div class="panel-head"><h2 id="ch-h">Share of net sales by channel</h2></div>
+      <div class="panel-body">
+        {% set chans = (t.by_channel or [])[:8] %}
+        {% set top_share = chans[0].revenue_share_pct if chans else 1 %}
+        {% for c in chans %}
+        <div class="hbar"><span class="lbl" title="{{ c.channel }}">{{ c.channel }}</span>
+          <span class="track"><i style="width: {{ (c.revenue_share_pct / top_share * 100)|round(1) }}%"></i></span>
+          <span class="v">{{ c.revenue_share_pct|round(1) }}%</span></div>
+        {% endfor %}
+        {% if (t.by_channel or [])|length > 8 %}<p class="hint" style="margin-top:8px">{{ (t.by_channel|length) - 8 }} smaller channels are listed in the results workbook (Sales by Channel).</p>{% endif %}
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="ops-h">
+      <div class="panel-head"><h2 id="ops-h">Channel operations</h2><span class="muted">Channels with 100+ lines</span></div>
+      <div class="table-wrap" style="border:0;border-radius:0 0 8px 8px">
+        <table class="table table-compact">
+          <thead><tr><th>Channel</th><th class="r">Lines</th><th class="r">Cancelled</th><th class="r">No carrier mapped</th></tr></thead>
+          <tbody>
+          {% for c in (t.by_channel or [])|selectattr("lines_total", "ge", 100)|sort(attribute="unmapped_carrier_pct", reverse=True) %}
+            <tr><td>{{ c.channel }}</td><td class="r">{{ c.lines_total|num }}</td>
+              <td class="r">{{ c.cancel_rate_pct|round(1) }}%</td>
+              <td class="r">{% if c.unmapped_carrier_pct >= 25 %}<span class="badge badge-warn">{{ c.unmapped_carrier_pct|round(1) }}%</span>{% else %}{{ c.unmapped_carrier_pct|round(1) }}%{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-labelledby="top-h" data-subtabs>
+    <div class="panel-head" style="flex-wrap:wrap"><h2 id="top-h">SKU performance</h2>
+      <div class="subtabs" role="tablist" aria-label="SKU lists">
+        <button type="button" role="tab" aria-selected="true" data-subtab="rev">Top by revenue</button>
+        <button type="button" role="tab" aria-selected="false" data-subtab="units">Top by units</button>
+        <button type="button" role="tab" aria-selected="false" data-subtab="non">Non-moving <span class="muted">{{ sa.counts.non_moving|num }}</span></button>
+        <button type="button" role="tab" aria-selected="false" data-subtab="stalled">Stalled <span class="muted">{{ sa.counts.stalled|num }}</span></button>
+        <button type="button" role="tab" aria-selected="false" data-subtab="low">Low-moving <span class="muted">{{ sa.counts.low_moving|num }}</span></button>
+      </div>
+    </div>
+    {% for key, rows in [("rev", t.top_by_revenue), ("units", t.top_by_units)] %}
+    <div class="table-wrap" style="border:0;border-radius:0 0 8px 8px" data-pane="{{ key }}" {% if key != "rev" %}hidden{% endif %}>
+      <table class="table table-compact">
+        <thead><tr><th>#</th><th>SKU</th><th class="r">Revenue</th><th class="r">Units</th><th class="r">Orders</th><th class="r">Avg price</th><th class="r">Share of revenue</th></tr></thead>
+        <tbody>{% for r in rows or [] %}<tr><td class="muted">{{ loop.index }}</td><td class="mono">{{ r.sku }}</td><td class="r">{{ r.revenue|money }}</td><td class="r">{{ r.units|num }}</td><td class="r">{{ r.orders|num }}</td><td class="r">{{ r.avg_price|money }}</td><td class="r">{{ r.revenue_share_pct }}%</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endfor %}
+    <div data-pane="non" hidden>
+      <p class="hint" style="padding:12px 18px 0">Ordered during the period but never sold: every line was cancelled, pending or zero-value.{% if sa.counts.non_moving > (t.non_moving or [])|length %} Showing {{ (t.non_moving or [])|length }}; the full list is in the results workbook.{% endif %}</p>
+      <div class="table-wrap" style="border:0;margin-top:8px;border-radius:0 0 8px 8px"><table class="table table-compact">
+        <thead><tr><th>SKU</th><th class="r">Order lines</th><th>Why not counted</th><th>Last order</th><th class="r">Value recorded</th></tr></thead>
+        <tbody>{% for r in (t.non_moving or [])[:60] %}<tr><td class="mono">{{ r.sku }}</td><td class="r">{{ r.order_lines }}</td><td>{{ r.why }}</td><td class="nowrap">{{ (r.last_order or "")[:10] }}</td><td class="r">{{ r.lost_value_recorded|money }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+    <div data-pane="stalled" hidden>
+      <p class="hint" style="padding:12px 18px 0">Sold 3 or more units in the first full month and none in the last full month.</p>
+      <div class="table-wrap" style="border:0;margin-top:8px;border-radius:0 0 8px 8px"><table class="table table-compact">
+        <thead><tr><th>SKU</th><th class="r">Units, first month</th><th class="r">Units, last month</th></tr></thead>
+        <tbody>{% for r in (t.stalled or [])[:60] %}<tr><td class="mono">{{ r.sku }}</td><td class="r">{{ r.units_first_month }}</td><td class="r">{{ r.units_last_month }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+    <div data-pane="low" hidden>
+      <p class="hint" style="padding:12px 18px 0">Sold one unit or fewer across the whole period, lowest revenue first. Showing 60 of {{ sa.counts.low_moving|num }}; the full list is in the results workbook.</p>
+      <div class="table-wrap" style="border:0;margin-top:8px;border-radius:0 0 8px 8px"><table class="table table-compact">
+        <thead><tr><th>SKU</th><th class="r">Units</th><th class="r">Revenue</th><th>Last sold</th></tr></thead>
+        <tbody>{% for r in (t.low_moving or [])[:60] %}<tr><td class="mono">{{ r.sku }}</td><td class="r">{{ r.units }}</td><td class="r">{{ r.revenue|money }}</td><td class="nowrap">{{ (r.last_sold or "")[:10] }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="panel" id="counting" aria-labelledby="count-h">
+    <div class="panel-head"><h2 id="count-h">How sales were counted</h2></div>
+    <div class="panel-body">
+      <ul style="margin:0;padding-left:18px;display:grid;gap:6px;max-width:100ch;line-height:1.55">{% for n in sa.treatment_notes %}<li>{{ n }}</li>{% endfor %}</ul>
+      {% if t.exclusions %}
+      <div class="table-wrap" style="margin-top:16px"><table class="table table-compact">
+        <thead><tr><th>Excluded because</th><th class="r">Lines</th><th class="r">Units</th><th class="r">Value recorded</th></tr></thead>
+        <tbody>{% for e in t.exclusions %}<tr><td>{{ e.exclusion_reason|capitalize }}</td><td class="r">{{ e.lines|num }}</td><td class="r">{{ e.units|num }}</td><td class="r">{{ e.value_recorded|money }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endif %}

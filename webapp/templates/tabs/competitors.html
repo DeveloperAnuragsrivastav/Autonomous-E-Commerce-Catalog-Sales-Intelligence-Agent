@@ -1,0 +1,92 @@
+{% from "_macros.html" import icon %}
+{% set summaries = results.competitors.summaries or [] %}
+{% set rows = results.competitors.rows or [] %}
+{% set prices = results.competitors.our_prices or [] %}
+{% if not summaries %}
+<div class="panel"><div class="empty">
+  <div class="empty-icon">{{ icon("store", "i-lg") }}</div>
+  <h2>No competitor benchmarks in this run</h2>
+  <p>{% if run.options.skip_competitors %}Competitor research was turned off for this run.{% else %}The step was skipped or failed; the Overview tab shows why. It needs a SerpAPI key.{% endif %}</p>
+</div></div>
+{% else %}
+<p class="muted" style="margin-bottom:14px;max-width:96ch">Our price is the live price on benzara.com for the exact SKU ({{ prices|selectattr("price")|list|length }} of {{ prices|length }} SKUs listed). Competitors are real Google Shopping listings picked for comparability; one benchmark per model covers its colour variants. Unlisted SKUs get a suggested launch band (competitor median ± 10%).</p>
+<div class="table-wrap" style="margin-bottom:24px">
+  <table class="table">
+    <thead><tr><th>Model</th><th class="r">Our price</th><th class="r">Competitor median</th><th class="r hide-sm">Range</th><th>Position</th></tr></thead>
+    <tbody>
+    {% for s in summaries %}
+      <tr class="row-click" data-href="#b-{{ s.sku }}">
+        <td class="wrap"><a class="row-link" href="#b-{{ s.sku }}" data-open-bench>{{ s.product }}</a><div class="small muted mono">{{ s.covers_skus|join(", ") }}</div></td>
+        <td class="r">{% if s.our_price.price %}{{ s.our_price.price|money }}{% if s.our_price.in_stock == false %}<div class="small muted">out of stock</div>{% endif %}{% else %}<span class="muted">Not listed</span>{% endif %}</td>
+        <td class="r">{{ s.competitor_median|money or "—" }}</td>
+        <td class="r hide-sm">{% if s.competitor_min %}{{ s.competitor_min|money }} – {{ s.competitor_max|money }}{% else %}—{% endif %}</td>
+        <td>{% if s.status != "ok" %}<span class="badge badge-warn">{{ icon("alert") }}{{ "No results" if s.status == "no_results" else "Search failed" }}</span>
+            {% elif s.our_price.price %}<span class="badge badge-plain">{{ s.positioning|capitalize }}</span>
+            {% else %}<span class="badge badge-plain">Launch band {{ s.suggested_price_band }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="section-title"><h2>Benchmarks by model</h2><button class="btn btn-sm" type="button" data-toggle-benches>Expand all</button></div>
+{% for s in summaries %}
+  {% set mine = rows|selectattr("sku", "equalto", s.sku)|list %}
+  <details class="panel bench" id="b-{{ s.sku }}">
+    <summary class="bench-head">
+      <span class="bench-chev" aria-hidden="true">{{ icon("chev-r") }}</span>
+      <h3>{{ s.product }}
+        <div class="small muted" style="font-weight:400;margin-top:2px">{{ s.covers_skus|join(", ") }} · <a href="/runs/{{ run.id }}/products/{{ s.sku }}">Open product</a></div></h3>
+      {% if s.status != "ok" %}<span class="badge badge-warn">{{ icon("alert") }}{{ "No results" if s.status == "no_results" else "Search failed" }}</span>
+      {% elif s.our_price.price %}<span class="badge badge-plain">{{ s.positioning|capitalize }}</span>
+      {% else %}<span class="badge badge-plain">Not listed yet</span>{% endif %}
+    </summary>
+    <div class="bench-insight">
+      <div class="price-pos" style="margin-bottom:8px">
+        <span>Our price <b>{% if s.our_price.price %}{{ s.our_price.price|money }}{% else %}not listed{% endif %}</b>{% if s.our_price.url %} <a href="{{ s.our_price.url }}" target="_blank" rel="noopener" aria-label="Open our listing on benzara.com">{{ icon("external", "i-sm") }}</a>{% endif %}{% if s.our_price.in_stock == false %} <span class="small">(out of stock)</span>{% endif %}</span>
+        {% if s.competitor_median %}<span>Competitor median <b>{{ s.competitor_median|money }}</b></span>
+        <span>Range <b>{{ s.competitor_min|money }} – {{ s.competitor_max|money }}</b></span>{% endif %}
+        {% if s.suggested_price_band %}<span>Suggested launch band <b>{{ s.suggested_price_band }}</b></span>{% endif %}
+      </div>
+      <p>{{ s.insight or s.error }}</p>
+    </div>
+    {% if mine %}
+    <div class="table-wrap">
+      <table class="table table-compact">
+        <thead><tr><th>Competitor product</th><th>Marketplace</th><th class="r">Price</th><th class="r">Ours − theirs</th><th class="r">Diff</th><th>Why comparable</th></tr></thead>
+        <tbody>
+        {% for r in mine %}
+          <tr>
+            <td class="wrap">{% if r.link %}<a href="{{ r.link }}" target="_blank" rel="noopener">{{ r.competitor_product }}</a>{% else %}{{ r.competitor_product }}{% endif %}</td>
+            <td class="nowrap">{{ r.marketplace }}</td>
+            <td class="r">{{ r.competitor_price|money }}</td>
+            <td class="r">{% if r.price_diff_usd is not none %}{{ "+" if r.price_diff_usd > 0 else "" }}{{ r.price_diff_usd|money }}{% else %}<span class="muted">–</span>{% endif %}</td>
+            <td class="r">{% if r.price_diff_pct is not none %}{{ "+" if r.price_diff_pct > 0 else "" }}{{ r.price_diff_pct }}%{% else %}<span class="muted">–</span>{% endif %}</td>
+            <td class="small muted" style="min-width:220px">{{ r.comparability }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    <div class="small muted" style="padding:8px 18px 12px;border-top:1px solid var(--line)">Search: “{{ s.search_query }}” · {{ s.candidates_found }} listings found, {{ s.candidates_after_filter }} kept after filtering{% if s.selection_source %} · picked by {{ s.selection_source|prov }}{% endif %}</div>
+  </details>
+{% endfor %}
+
+<div class="section-title"><h2>Our prices on benzara.com</h2></div>
+<div class="table-wrap">
+  <table class="table table-compact">
+    <thead><tr><th>SKU</th><th>Listing</th><th class="r">Price</th><th>Stock</th><th>Checked</th></tr></thead>
+    <tbody>
+    {% for p in prices %}
+      <tr>
+        <td class="mono">{{ p.sku }}</td>
+        <td class="wrap">{% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.listing_title }}</a>{% else %}<span class="muted">{{ p.note }}</span>{% endif %}</td>
+        <td class="r">{{ p.price|money }}</td>
+        <td>{% if p.in_stock == true %}In stock{% elif p.in_stock == false %}<span class="muted">Out of stock</span>{% endif %}</td>
+        <td class="nowrap muted">{{ p.fetched_at }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}

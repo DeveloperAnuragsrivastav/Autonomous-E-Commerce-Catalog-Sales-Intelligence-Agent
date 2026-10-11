@@ -1,0 +1,26 @@
+{% from "_macros.html" import icon %}
+{% set imgs = results.images.values()|list %}
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+  <p class="muted" style="flex:1;min-width:240px">Each image is named by SKU. The small inset is the vendor photo it was made from{% set providers = imgs|map(attribute="provider")|select|unique|list %}{% if providers %}; made with {% for x in providers %}{% if x.startswith("composite") %}the local composite renderer{% else %}{{ x|prov }}{% endif %}{{ ", " if not loop.last }}{% endfor %}{% endif %}.</p>
+  <a class="btn" href="/runs/{{ run.id }}/images.zip">{{ icon("download") }}Download all images</a>
+</div>
+{% if imgs|selectattr("provider", "equalto", "composite:rembg+rendered-room")|list %}
+<div class="alert alert-info" style="margin-bottom:16px">{{ icon("info") }}<div class="alert-body">These were made by the free composite renderer: the product is cut from the vendor photo unchanged and placed in a room drawn at its real dimensions. With billing enabled on the Google key, the same run produces photographic Gemini scenes.</div></div>
+{% endif %}
+<div class="gallery">
+  {% for img in imgs %}
+  <figure class="shot">
+    <a href="/runs/{{ run.id }}/products/{{ img.sku }}">
+      <div class="ph">
+        {% if img.status == "ok" %}
+          <img src="/runs/{{ run.id }}/images/{{ img.sku }}.jpg?w=640" alt="Lifestyle image for {{ img.sku }}" loading="{{ 'eager' if loop.index <= 8 else 'lazy' }}" width="640" height="480">
+          <img class="src" src="/runs/{{ run.id }}/source/{{ img.sku }}.jpg?w=160" alt="" loading="{{ 'eager' if loop.index <= 8 else 'lazy' }}">
+        {% else %}
+          <div class="missing"><span>{{ icon("image", "i-lg") }}<br>{{ img.note or "No image" }}</span></div>
+        {% endif %}
+      </div>
+      <figcaption><strong>{{ img.sku }}</strong><span class="small muted">{% if img.status == "ok" %}{{ img.provider|prov }}{% else %}{{ img.status|capitalize }}{% endif %}</span></figcaption>
+    </a>
+  </figure>
+  {% endfor %}
+</div>

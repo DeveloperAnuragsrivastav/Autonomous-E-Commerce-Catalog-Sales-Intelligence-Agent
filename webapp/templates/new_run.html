@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}New run{% endblock %}
+{% block crumbs %}<nav class="crumbs" aria-label="Breadcrumb"><a href="/runs">Runs</a>{{ icon("chev-r", "i-sm") }}<span>New run</span></nav>{% endblock %}
+{% block heading %}New run{% endblock %}
+{% block content %}
+{% set f = form %}
+<form method="post" action="/runs" enctype="multipart/form-data" class="split" data-new-run novalidate>
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="stack">
+    {% if error %}
+    <div class="alert alert-bad" role="alert">{{ icon("alert") }}<div class="alert-body"><strong>The run was not started</strong>{{ error }}</div></div>
+    {% endif %}
+    {% if active_run %}
+    <div class="alert alert-info" role="status">{{ icon("loader", "spinner") }}<div class="alert-body"><strong>A run is in progress</strong>Only one run executes at a time. <a href="/runs/{{ active_run }}">Watch its progress</a> or cancel it before starting another.</div></div>
+    {% endif %}
+
+    <section class="panel" aria-labelledby="wb-h">
+      <div class="panel-head"><h2 id="wb-h">Workbook</h2><span class="muted">Sheets “vendor data” and “sales data”</span></div>
+      <div class="panel-body">
+        <div class="choice-grid" role="radiogroup" aria-label="Workbook source">
+          <label class="choice"><input type="radio" name="source" value="upload" {% if f.source != "sample" %}checked{% endif %} data-source>
+            <span><strong>Upload a workbook</strong><span class="hint">An .xlsx file up to 25 MB.</span></span></label>
+          {% if sample %}
+          <label class="choice"><input type="radio" name="source" value="sample" {% if f.source == "sample" %}checked{% endif %} data-source>
+            <span><strong>Use the sample workbook</strong><span class="hint">test_data.xlsx from the assignment. <a href="/sample-workbook">Download</a></span></span></label>
+          {% endif %}
+        </div>
+        <label class="dropzone" style="margin-top:14px" data-dropzone>
+          <span class="dz-icon">{{ icon("upload", "i-lg") }}</span>
+          <span style="min-width:0">
+            <span class="dz-file" data-dz-name>Choose a workbook or drop it here</span>
+            <span class="hint" style="display:block" data-dz-hint>Cleaning happens inside the pipeline; upload the file as you received it.</span>
+          </span>
+          <input type="file" name="workbook" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-dz-input>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="scope-h">
+      <div class="panel-head"><h2 id="scope-h">SKUs</h2></div>
+      <div class="panel-body">
+        <div class="choice-grid" role="radiogroup" aria-label="SKU scope">
+          <label class="choice"><input type="radio" name="scope" value="all" {% if f.scope != "selected" %}checked{% endif %} data-scope>
+            <span><strong>Every vendor SKU</strong><span class="hint">Content and images for each row of the vendor sheet.</span></span></label>
+          <label class="choice"><input type="radio" name="scope" value="selected" {% if f.scope == "selected" %}checked{% endif %} data-scope>
+            <span><strong>Selected SKUs</strong><span class="hint">Useful for a quick check or a re-run.</span></span></label>
+        </div>
+        <div class="field" style="margin-top:14px" data-skus {% if f.scope != "selected" %}hidden{% endif %}>
+          <label for="skus">SKUs to process</label>
+          <textarea class="textarea" id="skus" name="skus" placeholder="BM349936, BM349940" rows="3">{{ f.skus or "" }}</textarea>
+          <span class="hint">Separate with commas or new lines. Sales analysis always uses the whole sales sheet.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="img-h">
+      <div class="panel-head"><h2 id="img-h">Lifestyle images</h2></div>
+      <div class="panel-body">
+        <div class="field">
+          <label for="image_provider">Image provider</label>
+          <select class="select" id="image_provider" name="image_provider">
+            {% for key, label in IMAGE_PROVIDERS.items() %}
+            <option value="{{ key }}" {% if (f.image_provider or pipeline.image_provider) == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <span class="hint">Gemini image editing needs billing enabled on the Google key. The composite renderer is free and keeps the product exactly as in the vendor photo.</span>
+        </div>
+        <fieldset class="field" style="border:0;padding:0;margin:16px 0 0">
+          <legend class="sr-only">How many images</legend>
+          <label class="check"><input type="radio" name="images" value="all" {% if f.images not in ("limit", "skip") %}checked{% endif %}><span><strong>Every SKU</strong></span></label>
+          <label class="check" style="margin-top:8px;align-items:center"><input type="radio" name="images" value="limit" {% if f.images == "limit" %}checked{% endif %}>
+            <span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong>Only the first</strong>
+              <input class="input input-num" type="number" min="1" name="image_limit" value="{{ f.image_limit or 5 }}" aria-label="Number of images"> <span class="muted">SKUs (cost control)</span></span></label>
+          <label class="check" style="margin-top:8px"><input type="radio" name="images" value="skip" {% if f.images == "skip" %}checked{% endif %}><span><strong>Skip images</strong></span></label>
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="comp-h">
+      <div class="panel-head"><h2 id="comp-h">Competitors and caching</h2></div>
+      <div class="panel-body">
+        <label class="check"><input type="checkbox" name="competitors" value="on" {% if not f or f.competitors == "on" %}checked{% endif %}>
+          <span><strong>Benchmark against competitors</strong><span class="hint">Our price from benzara.com, competitors from Google Shopping. One benchmark per model covers its colour variants (about 16 searches for the sample).</span></span></label>
+        <div class="field" style="margin-top:12px;padding-left:26px">
+          <label for="competitor_limit">Models to benchmark</label>
+          <div style="display:flex;gap:10px;align-items:center"><input class="input input-num" id="competitor_limit" type="number" min="0" name="competitor_limit" value="{{ f.competitor_limit or pipeline.competitor_limit }}"><span class="hint">0 means every model</span></div>
+        </div>
+        <label class="check" style="margin-top:16px"><input type="checkbox" name="use_cache" value="on" {% if not f or f.use_cache == "on" %}checked{% endif %}>
+          <span><strong>Reuse cached results</strong><span class="hint">Skips AI calls, searches and images already made for identical inputs. Untick to regenerate everything (uses API quota).</span></span></label>
+      </div>
+      <div class="panel-foot">
+        <span class="hint" style="margin-right:auto">The pipeline runs in the background; you can leave this page.</span>
+        <button class="btn btn-primary btn-lg" type="submit" {% if active_run %}disabled{% endif %} data-submit>{{ icon("play") }}Start run</button>
+      </div>
+    </section>
+  </div>
+
+  <aside class="stack">
+    <section class="panel" aria-labelledby="ready-h">
+      <div class="panel-head"><h2 id="ready-h">Readiness</h2></div>
+      <div class="panel-body">
+        <ul style="list-style:none;margin:0;padding:0;display:grid;gap:12px">
+          {% for s in secrets %}
+          <li style="display:grid;grid-template-columns:18px minmax(0,1fr);gap:10px">
+            {% if s.source == "unset" %}<span style="color:var(--warn)">{{ icon("alert") }}</span>{% else %}<span style="color:var(--ok)">{{ icon("check") }}</span>{% endif %}
+            <span><strong style="font-weight:600">{{ s.label }}</strong>
+              <span class="hint" style="display:block">{% if s.source == "unset" %}Not set. {% endif %}{{ s.purpose }}</span></span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if missing and not user.is_admin %}<p class="hint" style="margin-top:14px">An admin can add missing keys in Settings.</p>{% endif %}
+        {% if missing and user.is_admin %}<a class="btn btn-sm" style="margin-top:14px" href="/settings">{{ icon("key") }}Manage keys</a>{% endif %}
+      </div>
+    </section>
+    <section class="panel" aria-labelledby="what-h">
+      <div class="panel-head"><h2 id="what-h">What a run does</h2></div>
+      <div class="panel-body">
+        <ol style="margin:0;padding-left:18px;display:grid;gap:6px;color:#3c4043">
+          {% for _, label in STEPS %}<li>{{ label }}</li>{% endfor %}
+        </ol>
+        <p class="hint" style="margin-top:12px">A full run on the sample takes about 15 to 25 minutes on free-tier keys; with cached results, under 2 minutes.</p>
+      </div>
+    </section>
+  </aside>
+</form>
+{% endblock %}

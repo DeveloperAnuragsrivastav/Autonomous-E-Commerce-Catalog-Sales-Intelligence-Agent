@@ -1,0 +1,28 @@
+{% from "_macros.html" import icon %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr><th>File</th><th>Contents</th><th class="r">Size</th><th class="sr-only">Download</th></tr></thead>
+    <tbody>
+    {% for f in results.files %}
+      <tr>
+        <td class="nowrap"><span style="display:inline-flex;gap:8px;align-items:center">{{ icon("sheet" if f.name.endswith(".xlsx") else "file") }}<strong style="font-weight:600">{{ f.label }}</strong></span><div class="small muted mono">{{ f.name }}</div></td>
+        <td class="muted">{{ f.description }}</td>
+        <td class="r">{{ f.size|filesize }}</td>
+        <td class="r"><a class="btn btn-sm" href="/runs/{{ run.id }}/files/{{ f.name }}" {% if f.name.endswith('.html') %}target="_blank" rel="noopener"{% endif %}>{{ icon("external" if f.name.endswith('.html') else "download") }}{{ "Open" if f.name.endswith('.html') else "Download" }}</a></td>
+      </tr>
+    {% endfor %}
+      <tr>
+        <td class="nowrap"><span style="display:inline-flex;gap:8px;align-items:center">{{ icon("image") }}<strong style="font-weight:600">Lifestyle images</strong></span><div class="small muted mono">images/&lt;SKU&gt;.jpg</div></td>
+        <td class="muted">Every generated image, named by SKU, as a zip.</td>
+        <td class="r"></td>
+        <td class="r"><a class="btn btn-sm" href="/runs/{{ run.id }}/images.zip">{{ icon("download") }}Download</a></td>
+      </tr>
+      <tr>
+        <td class="nowrap"><span style="display:inline-flex;gap:8px;align-items:center">{{ icon("upload") }}<strong style="font-weight:600">Input workbook</strong></span><div class="small muted mono">{{ run.input_name }}</div></td>
+        <td class="muted">The workbook this run read, exactly as uploaded.</td>
+        <td class="r"></td>
+        <td class="r"><a class="btn btn-sm" href="/runs/{{ run.id }}/input">{{ icon("download") }}Download</a></td>
+      </tr>
+    </tbody>
+  </table>
+</div>

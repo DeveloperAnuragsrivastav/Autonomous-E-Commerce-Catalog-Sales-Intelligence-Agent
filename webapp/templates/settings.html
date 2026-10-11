@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Settings{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block content %}
+<div class="stack" style="max-width:980px">
+  {% if saved == "keys" %}<div class="alert alert-ok" role="status">{{ icon("check") }}<div class="alert-body">API keys saved. New runs use them straight away; test them below.</div></div>
+  {% elif saved == "pipeline" %}<div class="alert alert-ok" role="status">{{ icon("check") }}<div class="alert-body">Models and run defaults saved. They apply to the next run.</div></div>
+  {% elif saved == "nochange" %}<div class="alert" role="status">{{ icon("info") }}<div class="alert-body">Nothing changed: no new key was entered.</div></div>{% endif %}
+  {% if error %}<div class="alert alert-bad" role="alert">{{ icon("alert") }}<div class="alert-body"><strong>Not saved</strong>{{ error }}</div></div>{% endif %}
+
+  <form class="panel" method="post" action="/settings/keys" autocomplete="off" aria-labelledby="keys-h">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="panel-head"><h2 id="keys-h">API keys</h2><span class="muted">Stored on this server only; the browser never receives a full key</span></div>
+    {% for s in secrets %}
+    <div class="key-row">
+      <div>
+        <h3>{{ s.label }}
+          {% if s.source == "console" %}<span class="badge badge-ok">{{ icon("check") }}Saved here</span>
+          {% elif s.source == "env" %}<span class="badge badge-plain">From .env</span>
+          {% else %}<span class="badge badge-warn">{{ icon("alert") }}Not set</span>{% endif %}
+        </h3>
+        <p class="hint">{{ s.purpose }}</p>
+        {% if s.masked %}<p class="small mono muted" style="margin-top:6px">{{ s.masked }}</p>{% endif %}
+      </div>
+      <div>
+        <label class="sr-only" for="{{ s.key }}">New {{ s.label }} key</label>
+        <div class="key-input">
+          <input class="input mono" id="{{ s.key }}" name="{{ s.key }}" type="password" placeholder="{{ 'Paste a new key to replace it' if s.masked else 'Paste the key' }}" spellcheck="false" autocomplete="new-password">
+          <button class="btn" type="button" data-test-key="{{ s.key }}" {% if s.source == "unset" %}disabled{% endif %}>Test</button>
+        </div>
+        <div class="test-result" data-test-result="{{ s.key }}" aria-live="polite"></div>
+        {% if s.source == "console" %}
+        <label class="check small" style="margin-top:6px"><input type="checkbox" name="clear_{{ s.key }}"><span>Remove the key saved here{% if s.env_name %} (falls back to {{ s.env_name }} in .env if set){% endif %}</span></label>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    <div class="panel-foot"><span class="hint" style="margin-right:auto">Test checks the saved key without using generation quota. Save a new key before testing it.</span><button class="btn btn-primary" type="submit">Save keys</button></div>
+  </form>
+
+  <form class="panel" method="post" action="/settings/pipeline" aria-labelledby="pipe-h">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="panel-head"><h2 id="pipe-h">Models and run defaults</h2></div>
+    <div class="panel-body">
+      <div class="cols-2">
+        <div>
+          <div class="field">
+            <label for="text_models">Gemini models, in order</label>
+            <textarea class="textarea mono" id="text_models" name="text_models" rows="4" spellcheck="false">{{ pipeline.text_models|join("\n") if pipeline.text_models is not string else pipeline.text_models }}</textarea>
+            <span class="hint">One per line. Each has its own free-tier daily quota; when one runs out the next is used for the rest of the run.</span>
+          </div>
+          <div class="field">
+            <label for="fallback_text_model">Groq fallback model</label>
+            <input class="input mono" id="fallback_text_model" name="fallback_text_model" value="{{ pipeline.fallback_text_model }}" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="image_model">Gemini image model</label>
+            <input class="input mono" id="image_model" name="image_model" value="{{ pipeline.image_model }}" spellcheck="false">
+          </div>
+        </div>
+        <div>
+          <div class="field">
+            <label for="image_provider">Default image provider</label>
+            <select class="select" id="image_provider" name="image_provider">
+              {% for key, label in IMAGE_PROVIDERS.items() %}<option value="{{ key }}" {% if pipeline.image_provider == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="competitor_limit">Models to benchmark</label>
+            <input class="input input-num" id="competitor_limit" name="competitor_limit" type="number" min="0" value="{{ pipeline.competitor_limit }}">
+            <span class="hint">0 benchmarks every model. Each model uses one SerpAPI search.</span>
+          </div>
+          <div class="field">
+            <label for="competitors_per_sku">Competitors per model</label>
+            <input class="input input-num" id="competitors_per_sku" name="competitors_per_sku" type="number" min="1" max="5" value="{{ pipeline.competitors_per_sku }}">
+          </div>
+          <div class="field">
+            <label for="max_workers">Parallel content calls</label>
+            <input class="input input-num" id="max_workers" name="max_workers" type="number" min="1" max="8" value="{{ pipeline.max_workers }}">
+            <span class="hint">Higher is faster but hits free-tier rate limits sooner.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-foot"><button class="btn btn-primary" type="submit">Save defaults</button></div>
+  </form>
+
+  <section class="panel" aria-labelledby="acc-h">
+    <div class="panel-head"><h2 id="acc-h">Accounts</h2></div>
+    <div class="panel-body">
+      <dl class="facts">
+        <dt>Admin</dt><dd><span class="mono">{{ accounts.admin }}</span> · keys, models, defaults, delete runs, and everything an operator can do</dd>
+        <dt>Operator</dt><dd><span class="mono">{{ accounts.operator }}</span> · upload workbooks, start and cancel runs, review and download results</dd>
+      </dl>
+      <p class="hint" style="margin-top:14px">Both accounts are fixed. To change a username or password, set CONSOLE_ADMIN_USER / CONSOLE_ADMIN_PASSWORD or CONSOLE_OPERATOR_USER / CONSOLE_OPERATOR_PASSWORD in .env and restart the console.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% from "_macros.html" import icon, run_badge %}
+<div class="table-wrap">
+  <table class="table">
+    <thead><tr>
+      <th>Run</th><th>Status</th><th class="hide-sm">Scope</th><th class="hide-sm">Started by</th><th class="hide-sm">Started</th><th class="r hide-sm">Duration</th><th class="hide-sm"><span class="sr-only">Open</span></th>
+    </tr></thead>
+    <tbody>
+    {% for r in runs %}
+      <tr class="row-click" data-href="/runs/{{ r.id }}">
+        <td><a class="row-link" href="/runs/{{ r.id }}">{{ r.input_name }}</a><div class="small muted mono nowrap">{{ r.id }}</div><div class="small muted show-sm">{{ r.created_at|when }}</div></td>
+        <td>{{ run_badge(r.status) }}</td>
+        <td class="muted hide-sm">{% if r.options.skus %}{{ r.options.skus|length }} SKUs{% else %}All SKUs{% endif %}{% if r.options.skip_images %}, no images{% endif %}{% if r.options.skip_competitors %}, no competitors{% endif %}</td>
+        <td class="hide-sm">{{ r.created_by }}</td>
+        <td class="nowrap hide-sm">{{ r.created_at|when }}</td>
+        <td class="r hide-sm">{{ r|duration or "—" }}</td>
+        <td class="r hide-sm"><a class="btn btn-ghost btn-sm" tabindex="-1" href="/runs/{{ r.id }}" aria-label="Open run {{ r.id }}">{{ icon("chev-r") }}</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,59 @@
+{% from "_macros.html" import icon %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf }}">
+  <title>{% block title %}Catalog Agent{% endblock %} · Catalog Agent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%231a1a1a'/%3E%3Cpath d='M6 11.4V6.6a.6.6 0 0 1 .6-.6h4.8l6.4 6.4-5.4 5.4z' fill='none' stroke='white' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/app.css?v={{ asset_version() }}">
+</head>
+<body>
+{% include "_icons.html" %}
+<a class="sr-only" href="#main">Skip to content</a>
+<div class="app" data-app>
+  <aside class="sidebar" aria-label="Main navigation">
+    <a class="brand" href="/">
+      <span class="brand-mark">{{ icon("tag") }}</span>
+      <span class="brand-name">Catalog Agent<span class="brand-sub">Benjara vendor pipeline</span></span>
+    </a>
+    <nav class="nav">
+      <a href="/" {% if nav == "overview" %}aria-current="page"{% endif %}>{{ icon("home") }}Overview</a>
+      <a href="/runs" {% if nav == "runs" %}aria-current="page"{% endif %}>{{ icon("runs") }}Runs
+        {% if active_run %}<span class="live" title="A run is in progress"></span>{% endif %}</a>
+      <a href="/runs/new" {% if nav == "new" %}aria-current="page"{% endif %}>{{ icon("plus") }}New run</a>
+      {% if user.is_admin %}
+      <div class="nav-label">Admin</div>
+      <a href="/settings" {% if nav == "settings" %}aria-current="page"{% endif %}>{{ icon("settings") }}Settings</a>
+      {% endif %}
+    </nav>
+    <div class="sidebar-foot">
+      <span class="avatar" aria-hidden="true">{{ user.username[:2] }}</span>
+      <span class="who"><strong>{{ user.username }}</strong><span>{{ "Admin" if user.is_admin else "Operator" }}</span></span>
+      <form method="post" action="/logout">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button class="btn btn-ghost btn-sm" type="submit" title="Sign out" aria-label="Sign out">{{ icon("logout") }}</button>
+      </form>
+    </div>
+  </aside>
+  <div class="scrim" data-nav-close></div>
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <button class="btn btn-ghost menu-btn" type="button" data-nav-toggle aria-label="Open navigation">{{ icon("menu") }}</button>
+        <div class="topbar-title">
+          {% block crumbs %}{% endblock %}
+          <h1>{% block heading %}{% endblock %}</h1>
+        </div>
+        <div class="topbar-actions">{% block actions %}{% endblock %}</div>
+      </div>
+    </header>
+    <main class="content" id="main">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<script src="/static/app.js?v={{ asset_version() }}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

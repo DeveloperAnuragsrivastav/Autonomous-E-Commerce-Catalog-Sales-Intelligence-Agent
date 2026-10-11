@@ -1,0 +1,11 @@
+{% from "_macros.html" import icon %}
+{% if log %}
+<pre class="log" data-log tabindex="0" aria-label="Run log">{% for line in log %}<span class="{{ 'w' if ' WARNING ' in line else ('e' if ' ERROR ' in line else '') }}">{{ line }}</span>
+{% endfor %}</pre>
+{% else %}
+<div class="panel"><div class="empty">
+  <div class="empty-icon">{{ icon("text", "i-lg") }}</div>
+  <h2>No log for this run</h2>
+  <p>{% if run.imported %}This run came from the command line; its log was printed to the terminal.{% else %}Log lines appear here while the run executes.{% endif %}</p>
+</div></div>
+{% endif %}

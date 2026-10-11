@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% from "_macros.html" import icon %}
+{% block title %}Runs{% endblock %}
+{% block heading %}Runs{% endblock %}
+{% block actions %}<a class="btn btn-primary" href="/runs/new">{{ icon("plus") }}New run</a>{% endblock %}
+{% block content %}
+{% if runs %}
+  {% include "_runs_table.html" %}
+{% else %}
+  <div class="panel"><div class="empty">
+    <div class="empty-icon">{{ icon("runs", "i-lg") }}</div>
+    <h2>No runs yet</h2>
+    <p>Each run keeps its input workbook, outputs and lifestyle images so you can come back to them.</p>
+    <a class="btn btn-primary" href="/runs/new">{{ icon("plus") }}Start a run</a>
+  </div></div>
+{% endif %}
+{% endblock %}
